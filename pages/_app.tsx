@@ -26,7 +26,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         <WalletModalProvider>
           <Layout>
             <Head>
-              <title>Cookies Inc</title>
+              <title>Web3 Swag</title>
             </Head>
             <Component {...pageProps} />
           </Layout>
