@@ -26,8 +26,8 @@ type ErrorOutput = {
 
 function get(res: NextApiResponse<MakeTransactionGetResponse>) {
   res.status(200).json({
-    label: "Cookies Inc",
-    icon: "https://freesvg.org/img/1370962427.png",
+    label: "Web3 Swag",
+    icon: "https://freesvg.org/img/Blue_Polo_Shirt_Remix_by_Merlin2525.png",
   })
 }
 
@@ -36,28 +36,24 @@ async function post(
   res: NextApiResponse<MakeTransactionOutputData | ErrorOutput>
 ) {
   try {
-    // We pass the selected items in the query, calculate the expected cost
     const amount = calculatePrice(req.query)
     if (amount.toNumber() === 0) {
       res.status(400).json({ error: "Can't checkout with charge of 0" })
       return
     }
 
-    // We pass the reference to use in the query
     const { reference } = req.query
     if (!reference) {
       res.status(400).json({ error: "No reference provided" })
       return
     }
 
-    // We pass the buyer's public key in JSON body
     const { account } = req.body as MakeTransactionInputData
     if (!account) {
       res.status(40).json({ error: "No account provided" })
       return
     }
 
-    // We get the shop private key from .env - this is the same as in our script
     const shopPrivateKey = process.env.SHOP_PRIVATE_KEY as string
     if (!shopPrivateKey) {
       res.status(500).json({ error: "Shop private key not available" })
@@ -71,8 +67,6 @@ async function post(
     const endpoint = clusterApiUrl(network)
     const connection = new Connection(endpoint)
 
-    // Get the buyer and seller coupon token accounts
-    // Buyer one may not exist, so we create it (which costs SOL) as the shop account if it doesn't 
     const buyerCouponAccount = await getOrCreateAssociatedTokenAccount(
       connection,
       shopKeypair, // shop pays the fee to create it
@@ -82,7 +76,6 @@ async function post(
 
     const shopCouponAddress = await getAssociatedTokenAddress(couponAddress, shopPublicKey)
 
-    // If the buyer has at least 5 coupons, they can use them and get a discount
     const buyerGetsCouponDiscount = buyerCouponAccount.amount >= 5
 
     // Get details about the USDC token
@@ -114,8 +107,6 @@ async function post(
       usdcMint.decimals, // decimals of the USDC token
     )
 
-    // Add the reference to the instruction as a key
-    // This will mean this transaction is returned when we query for the reference
     transferInstruction.keys.push({
       pubkey: new PublicKey(reference),
       isSigner: false,
@@ -143,10 +134,6 @@ async function post(
         0, // decimals of the token - we know this is 0
       )
 
-    // Add the shop as a signer to the coupon instruction
-    // If the shop is sending a coupon, it already will be a signer
-    // But if the buyer is sending the coupons, the shop won't be a signer automatically
-    // It's useful security to have the shop sign the transaction
     couponInstruction.keys.push({
       pubkey: shopPublicKey,
       isSigner: true,
@@ -162,12 +149,9 @@ async function post(
 
     // Serialize the transaction and convert to base64 to return it
     const serializedTransaction = transaction.serialize({
-      // We will need the buyer to sign this transaction after it's returned to them
       requireAllSignatures: false
     })
     const base64 = serializedTransaction.toString('base64')
-
-    // Insert into database: reference, amount
 
     const message = buyerGetsCouponDiscount ? "50% Discount! 👕💻" : "Thanks for your order! 👕💻"
 
